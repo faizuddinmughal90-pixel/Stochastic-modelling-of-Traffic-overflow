@@ -1,0 +1,663 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Stochastic Modelling of Traffic Inflow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: masthead + three-tab workspace. Prototype is a left-to-right working order (data, fit, checks); other tabs are readable documents.
+   Palette: deep teal ink on cool paper, one orange for "expected" values. */
+:root{
+  --bg:#f3f6f6; --surface:#ffffff; --ink:#10201f; --muted:#52676a; --line:#d3dddd;
+  --accent:#0a6b7c; --accent-ink:#ffffff; --accent-soft:#dcecef; --exp:#c2571a;
+  --good:#1b7f4b; --warn:#9a5b00; --bad:#b3261e;
+  --f-head:"Space Grotesk","Inter",system-ui,sans-serif; --f-body:"Inter",system-ui,sans-serif; --f-mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1616; --surface:#142021; --ink:#e5eeed; --muted:#90a7a8; --line:#283a3b;
+  --accent:#4fb6c9; --accent-ink:#06191d; --accent-soft:#17343a; --exp:#f0914f;
+  --good:#4cc58a; --warn:#e0a63a; --bad:#f0766d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1616; --surface:#142021; --ink:#e5eeed; --muted:#90a7a8; --line:#283a3b;
+  --accent:#4fb6c9; --accent-ink:#06191d; --accent-soft:#17343a; --exp:#f0914f;
+  --good:#4cc58a; --warn:#e0a63a; --bad:#f0766d; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--f-body);padding-block:0 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1080px;margin:0 auto}
+h1,h2,h3{font-family:var(--f-head);line-height:1.2;text-wrap:balance;margin:0}
+.mast{padding:28px 0 18px}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font-size:clamp(24px,4.4vw,38px);font-weight:700;margin:8px 0 8px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0;max-width:70ch}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:8px 0 24px;overflow-x:auto}
+.tabs button{font:600 14px var(--f-body);color:var(--muted);background:none;border:0;border-bottom:3px solid transparent;padding:12px 16px;cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h2{font-size:22px;margin:0 0 6px}
+h3{font-size:16px;margin:0 0 6px}
+.sec{margin:0 0 28px}
+.lede{color:var(--muted);margin:0 0 14px;max-width:75ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}
+.grid2>*{min-width:0}
+.stack{display:grid;gap:16px}
+label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:4px}
+input,select,textarea{width:100%;font:14px var(--f-mono);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+select{font-family:var(--f-body)}
+textarea{min-height:110px;resize:vertical}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:12px}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.btn{font:600 13px var(--f-body);padding:8px 12px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.hint{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.msg{font-size:13px;margin:8px 0 0;color:var(--bad)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+.stat{border-left:3px solid var(--accent);padding-left:10px}
+.stat b{display:block;font:500 22px var(--f-mono);font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.pill{display:inline-block;font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}
+.pill.good{color:var(--good)}.pill.warn{color:var(--warn)}.pill.bad{color:var(--bad)}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;font-variant-numeric:tabular-nums}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+td.n,th.n{text-align:right;font-family:var(--f-mono)}
+tfoot td{font-weight:600}
+.formula{font:500 15px var(--f-mono);background:var(--accent-soft);border-radius:6px;padding:10px 12px;margin:8px 0;overflow-x:auto}
+.chart{overflow-x:auto}
+.chart svg{display:block;width:100%;min-width:520px;height:auto}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .axis{stroke:var(--muted);stroke-width:1}
+.chart .tick{fill:var(--muted);font:11px var(--f-body)}
+.chart .albl{fill:var(--muted);font:12px var(--f-body)}
+.chart .bar{fill:var(--accent);opacity:.85}
+.chart .exp{stroke:var(--exp);stroke-width:2;fill:none}
+.chart .dot{fill:var(--exp)}
+.chart .pt{fill:var(--accent)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.mono{font-family:var(--f-mono)}
+.empty{color:var(--muted);font-style:italic}
+.mix{display:grid;gap:6px}
+.mix div{display:grid;grid-template-columns:110px 1fr 56px;gap:10px;align-items:center;font-size:13px}
+.mix .track{background:var(--accent-soft);border-radius:4px;height:10px}
+.mix .track i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:10px;counter-reset:s}
+.steps li{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--line)}
+.steps li::before{counter-increment:s;content:counter(s);font:600 13px var(--f-mono);color:var(--accent)}
+.wk{font:12px var(--f-mono);color:var(--muted)}
+.tool{margin-bottom:16px}
+ul.tight{margin:6px 0 0;padding-left:20px}
+ul.tight li{margin:3px 0}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 20px}
+.chips button{font:500 13px var(--f-body);color:var(--accent);background:var(--accent-soft);border:0;border-radius:99px;padding:5px 12px;cursor:pointer}
+footer{border-top:1px solid var(--line);margin-top:36px;padding-top:16px;font-size:13px;color:var(--muted)}
+[role=tabpanel]:focus{outline:none}
+@media (max-width:520px){.mix div{grid-template-columns:90px 1fr 50px}}
+</style>
+
+<div class="wrap">
+<header class="mast">
+  <div class="eyebrow">Applied Statistics &amp; Stochastic Processes</div>
+  <h1>Stochastic Modelling for the Traffic Inflow on Particular Demography</h1>
+  <p class="sub">Count vehicles entering an area in fixed time slots, model them with Poisson, Exponential and Markov chain, test the fit with Chi-square, and compare areas.</p>
+</header>
+
+<div class="tabs" role="tablist" aria-label="Sections">
+  <button role="tab" id="t-prototype" aria-controls="p-prototype" aria-selected="true" data-tab="prototype">Working prototype</button>
+  <button role="tab" id="t-methodology" aria-controls="p-methodology" aria-selected="false" data-tab="methodology">Methodologies used</button>
+  <button role="tab" id="t-references" aria-controls="p-references" aria-selected="false" data-tab="references">References</button>
+</div>
+
+<!-- ============ PROTOTYPE ============ -->
+<section role="tabpanel" id="p-prototype" aria-labelledby="t-prototype" tabindex="-1">
+  <div class="sec">
+    <h2>Your traffic counts</h2>
+    <p class="lede">Enter the number of vehicles entering per time slot, one value per slot. Treat each period (morning peak, midday, evening peak, night) as a separate dataset, and fit a separate λ for each vehicle type.</p>
+    <div class="grid2">
+      <div class="card">
+        <label for="vtype">Vehicle type</label>
+        <select id="vtype"></select>
+        <div style="margin-top:12px">
+          <label for="counts">Counts per slot (separated by commas, spaces or new lines)</label>
+          <textarea id="counts" spellcheck="false"></textarea>
+          <div class="msg" id="countsMsg" role="alert"></div>
+        </div>
+        <div class="row">
+          <div><label for="slotMin">Slot length (minutes)</label><input id="slotMin" type="number" min="1" step="1" value="10"></div>
+          <div><label for="lamOver">λ for the test (blank = estimate)</label><input id="lamOver" type="number" min="0" step="any" placeholder="from data"></div>
+        </div>
+        <div class="btns">
+          <button class="btn" id="smpSteady">Load steady sample</button>
+          <button class="btn ghost" id="smpBunch">Load bunched sample</button>
+          <button class="btn ghost" id="smpDeck">Load slide 11 example</button>
+        </div>
+        <p class="hint">Samples are generated in your browser and are illustrative only. They are not real survey counts.</p>
+      </div>
+      <div class="card">
+        <label for="gaps">Gaps between consecutive vehicles, in seconds (optional)</label>
+        <textarea id="gaps" spellcheck="false" placeholder="e.g. 12, 4.5, 31, 9 …"></textarea>
+        <div class="msg" id="gapsMsg" role="alert"></div>
+        <p class="hint">Needs exact arrival times. Used for the Exponential check below.</p>
+        <h3 style="margin-top:16px">Vehicle mix</h3>
+        <div id="mix" class="mix"><span class="empty">Enter counts for individual vehicle types to see each type's share of all vehicles.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>Summary and dispersion check</h2>
+    <div class="card" id="summary"><span class="empty">Waiting for counts.</span></div>
+  </div>
+
+  <div class="sec">
+    <h2>Poisson fit and Chi-square test</h2>
+    <p class="lede">H0: counts follow a Poisson distribution. Rare counts are merged until every expected value E is at least 5. Degrees of freedom = classes − 1 − 1. Significance level 0.05.</p>
+    <div class="grid2">
+      <div class="card"><div class="legend"><span><i style="background:var(--accent)"></i>Observed slots</span><span><i style="background:var(--exp)"></i>Expected (Poisson)</span></div><div class="chart" id="poisChart"></div></div>
+      <div class="card"><div id="chiOut"><span class="empty">Waiting for counts.</span></div></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>Markov chain</h2>
+    <p class="lede">Slots are labelled light, moderate or heavy from count bands, and the moves between consecutive slots give the transition probabilities. The band limits change the result, so they are shown and editable.</p>
+    <div class="grid2">
+      <div class="card">
+        <div class="row" style="margin-top:0">
+          <div><label for="bandL">Light: count up to</label><input id="bandL" type="number" step="1"></div>
+          <div><label for="bandH">Heavy: count from</label><input id="bandH" type="number" step="1"></div>
+        </div>
+        <div class="btns"><button class="btn ghost" id="bandReset">Reset to thirds</button></div>
+        <p class="hint">Default limits split the slots into thirds. Moderate is everything in between.</p>
+        <div class="msg" id="bandMsg" role="alert"></div>
+        <div id="mkNote" class="hint"></div>
+      </div>
+      <div class="card" id="mkOut"><span class="empty">Waiting for counts.</span></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>Exponential check on gaps</h2>
+    <div class="grid2">
+      <div class="card"><div class="legend"><span><i style="background:var(--accent)"></i>Observed gaps</span><span><i style="background:var(--exp)"></i>Expected (Exponential)</span></div><div class="chart" id="gapChart"><span class="empty">Add gaps above to see the histogram.</span></div></div>
+      <div class="card" id="gapOut"><span class="empty">Add gaps above. If arrivals are Poisson, the standard deviation of the gaps should be close to their mean.</span></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>Normal check for busy periods</h2>
+    <p class="lede">Use this when the average is above about 20 per slot. For buses and trucks, stay with Poisson.</p>
+    <div class="card"><div id="qqNote" class="hint" style="margin:0 0 8px"></div><div class="chart" id="qqChart"></div>
+      <p class="hint">Points near the diagonal mean the counts look like a bell curve. The Shapiro-Wilk test is not part of this prototype.</p></div>
+  </div>
+
+  <div class="sec">
+    <h2>Calculators</h2>
+    <p class="lede">Each one starts with the worked example from the presentation.</p>
+    <div class="grid2">
+      <div class="card"><h3>Poisson probabilities</h3>
+        <div class="row" style="margin-top:6px"><div><label for="cL">λ per slot</label><input id="cL" type="number" step="any" value="40"></div><div><label for="cX">x vehicles</label><input id="cX" type="number" step="1" value="35"></div></div>
+        <div class="tw" style="margin-top:8px"><table id="cPois"></table></div></div>
+      <div class="card"><h3>Exponential gaps</h3>
+        <div class="row" style="margin-top:6px">
+          <div><label for="eL">Vehicles per slot</label><input id="eL" type="number" step="any" value="40"></div>
+          <div><label for="eM">Slot minutes</label><input id="eM" type="number" step="any" value="10"></div>
+          <div><label for="eT">Gap over (s)</label><input id="eT" type="number" step="any" value="30"></div>
+          <div><label for="eS">Gap under (s)</label><input id="eS" type="number" step="any" value="5"></div></div>
+        <div class="tw" style="margin-top:8px"><table id="cExp"></table></div></div>
+      <div class="card"><h3>Basic probability</h3>
+        <div class="row" style="margin-top:6px"><div><label for="bE">Slots where it happened</label><input id="bE" type="number" step="1" value="18"></div><div><label for="bN">Total slots</label><input id="bN" type="number" step="1" value="120"></div></div>
+        <div class="tw" style="margin-top:8px"><table id="cBasic"></table></div>
+        <p class="hint">Example: more than 20 bikes in 18 of 120 slots.</p></div>
+      <div class="card"><h3>Normal approximation</h3>
+        <div class="row" style="margin-top:6px"><div><label for="nM">Mean μ</label><input id="nM" type="number" step="any" value="40"></div><div><label for="nS">Std dev σ</label><input id="nS" type="number" step="any" value="6.32"></div><div><label for="nX">More than</label><input id="nX" type="number" step="1" value="50"></div></div>
+        <div class="tw" style="margin-top:8px"><table id="cNorm"></table></div>
+        <div class="btns"><button class="btn ghost" id="nUse">Use my data's mean and SD</button></div></div>
+      <div class="card" style="grid-column:1/-1"><h3>Markov chain, illustrative table from the presentation</h3>
+        <div class="grid2" style="margin-top:8px"><div class="tw"><table id="cMk"></table></div><div id="cMkOut"></div></div>
+        <p class="hint">Rows must each add up to 1. Edit any value to try your own table.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ METHODOLOGY ============ -->
+<section role="tabpanel" id="p-methodology" aria-labelledby="t-methodology" tabindex="-1" hidden>
+  <div class="chips" aria-label="Jump to">
+    <button data-jump="m-aim">Aim and problem</button><button data-jump="m-data">Data</button><button data-jump="m-frame">Framework</button><button data-jump="m-t1">Poisson</button><button data-jump="m-t2">Exponential</button><button data-jump="m-t3">Markov chain</button><button data-jump="m-t4">Chi-square</button><button data-jump="m-t5">Normal and demography</button><button data-jump="m-end">Limitations and conclusion</button>
+  </div>
+
+  <div class="sec" id="m-aim">
+    <h2>Aim and problem</h2>
+    <div class="stack">
+      <div class="card"><h3>Aim</h3><p style="margin:0">To describe the traffic inflow into a particular area using probability models, test how well the models fit the real counts, and link the results to the demography of the area.</p></div>
+      <div class="card"><h3>Abstract</h3><p style="margin:0">This project plans a methodology for stochastic modelling of traffic inflow. Vehicles entering an area are counted in fixed time slots, split by vehicle type. The Poisson distribution models arrivals per slot, the Exponential distribution models the gaps between vehicles, and a Markov chain models shifts between light, moderate and heavy traffic. The Chi-square test checks the fit, with the Normal distribution as an extra. Results are compared across areas with different demography.</p></div>
+      <div class="card"><h3>Introduction</h3>
+        <ul class="tight">
+          <li>Traffic never arrives at a steady beat: ten minutes may bring 32 vehicles, the next ten 47, and the next 38.</li>
+          <li>Towns add vehicles faster than road, and mixed traffic of bikes, autos, cars, buses and trucks makes the pattern harder to read.</li>
+          <li>Inflow, the number of vehicles entering an area in a given time, is the starting point for signal timing, road design, safety, parking, air quality and planning ahead.</li>
+          <li>A stochastic model treats arrivals as a random process: unpredictable from one moment to the next, but with a clear pattern over time.</li>
+          <li>Probability lets us describe inflow with numbers instead of hunches, including the risk of a bad slot and not just the typical one.</li>
+        </ul></div>
+      <div class="grid2">
+        <div class="card"><h3>Problem statement</h3><p style="margin:0">Traffic inflow depends on the area: students, offices, markets and housing each produce different vehicles, peaks and quiet spells. A plain average such as “40 vehicles every ten minutes” hides the worst slot, the quiet gaps and whether heavy traffic lasts.</p></div>
+        <div class="card"><h3>Research gap</h3><p style="margin:0">There is a need to check whether simple probability models describe inflow in one particular demography, and to show where they fail, for example when signals or office timings bunch vehicles together.</p></div>
+        <div class="card"><h3>Proposed solution</h3><p style="margin:0">Count vehicles by type in fixed slots, model them with Poisson, Exponential and Markov chain, test the fit with Chi-square, and compare areas.</p></div>
+        <div class="card"><h3>Scope</h3><p style="margin:0">Only vehicles entering the area, in fixed 10-minute slots, with morning peak, midday, evening peak and night treated separately.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="m-data">
+    <h2>Data description, collection and cleaning</h2>
+    <p class="lede">Data source: counts at the main entry points (tally, video or automatic counters), plus census and municipal records.</p>
+    <div class="grid2">
+      <div class="card"><h3>Traffic data (per time slot)</h3><div class="tw"><table>
+        <thead><tr><th>Parameter</th><th>Description</th></tr></thead><tbody>
+        <tr><td>Counts per slot</td><td>Vehicles entering per 10 minutes</td></tr>
+        <tr><td>Gaps</td><td>Arrival time to the second</td></tr>
+        <tr><td>Vehicle category</td><td>Two-wheeler, car, auto, bus, truck, cycle</td></tr>
+        <tr><td>Date and time</td><td>Slot start, weekday or weekend</td></tr>
+        <tr><td>Location</td><td>Entry point, direction, lanes, signals</td></tr>
+        <tr><td>Conditions</td><td>Weather, festivals, roadworks, accidents</td></tr></tbody></table></div></div>
+      <div class="card"><h3>Demographic data (once per area)</h3><div class="tw"><table>
+        <thead><tr><th>Variable</th><th>Why it matters</th></tr></thead><tbody>
+        <tr><td>Population, density</td><td>More people, more trips</td></tr>
+        <tr><td>Age groups</td><td>Students lean to two-wheelers</td></tr>
+        <tr><td>Occupation</td><td>Offices and factories create timed surges</td></tr>
+        <tr><td>Vehicle ownership</td><td>Shapes the vehicle mix</td></tr>
+        <tr><td>Land use</td><td>Residential, market, office, school</td></tr>
+        <tr><td>Travel patterns</td><td>Explain when peaks fall</td></tr></tbody></table></div>
+        <p class="hint">Traffic data shows how the area behaves; demographic data, matched to it afterwards, shows why.</p></div>
+      <div class="card"><h3>Collection plan</h3><div class="tw"><table>
+        <thead><tr><th>Parameter</th><th>Description</th></tr></thead><tbody>
+        <tr><td>Where</td><td>Main entry points, away from signals</td></tr>
+        <tr><td>How long</td><td>3–5 days, including a weekend</td></tr>
+        <tr><td>Slots</td><td>About 100 per period</td></tr>
+        <tr><td>Slot length</td><td>10 minutes, same throughout</td></tr>
+        <tr><td>Methods</td><td>Tally, video, counters, records</td></tr>
+        <tr><td>Quality</td><td>Fixed classes, double counting, flag disturbed slots</td></tr></tbody></table></div></div>
+      <div class="card"><h3>Cleaning and the dispersion check</h3>
+        <p style="margin:0 0 6px">Remove or flag missing slots, impossible values, duplicates and accident slots; log every change.</p>
+        <div class="formula">dispersion index = variance / mean</div>
+        <div class="tw"><table><thead><tr><th>Value</th><th>Meaning</th></tr></thead><tbody>
+        <tr><td>≈ 1</td><td>Poisson looks good</td></tr>
+        <tr><td>&gt; 1</td><td>Bunching, often from a signal</td></tr>
+        <tr><td>&lt; 1</td><td>More even than random</td></tr></tbody></table></div></div>
+    </div>
+  </div>
+
+  <div class="sec" id="m-frame">
+    <h2>Methodology framework</h2>
+    <div class="card"><ol class="steps">
+      <li><span>Choose the area, entry points, vehicle classes and slot length.</span><span class="wk">Week 1</span></li>
+      <li><span>Collect and clean the counts.</span><span class="wk">Weeks 2–4</span></li>
+      <li><span>Run summaries and the dispersion check.</span><span class="wk">Week 4</span></li>
+      <li><span>Fit Poisson to counts and Exponential to gaps.</span><span class="wk">Week 5</span></li>
+      <li><span>Label slots light, moderate or heavy and build the Markov chain.</span><span class="wk">Week 5</span></li>
+      <li><span>Run Chi-square tests and the Normal check.</span><span class="wk">Week 6</span></li>
+      <li><span>Compare areas and relate them to demography.</span><span class="wk">Week 6</span></li>
+      <li><span>Write up the findings and limitations.</span><span class="wk">Week 7</span></li>
+    </ol></div>
+  </div>
+
+  <div class="sec" id="m-t1">
+    <h2>Statistical tool 1: Poisson distribution</h2>
+    <div class="card tool">
+      <p style="margin:0">Models the number of vehicles arriving in a fixed time slot when arrivals are independent at a steady average rate λ.</p>
+      <div class="formula">P(X = x) = e<sup>−λ</sup> · λ<sup>x</sup> / x!</div>
+      <p class="hint" style="margin-top:0">Where x = number of vehicles, λ = average count per slot.</p>
+      <h3 style="margin-top:14px">It fits when</h3>
+      <p style="margin:0">Arrivals are independent · the rate is steady within the period · no two vehicles arrive at the same instant · mean ≈ variance.</p>
+      <h3 style="margin-top:14px">Basic probability</h3>
+      <p style="margin:0">P(event) = slots where it happened / total slots. More than 20 bikes in 18 of 120 slots gives 18/120 = 0.15, about one slot in seven.</p>
+      <h3 style="margin-top:14px">Worked example: λ = 40 per 10 minutes</h3>
+      <div class="tw"><table style="max-width:380px"><thead><tr><th>Event</th><th class="n">Probability</th></tr></thead><tbody>
+        <tr><td>Exactly 40</td><td class="n">0.063</td></tr><tr><td>Exactly 35</td><td class="n">0.049</td></tr><tr><td>Exactly 45</td><td class="n">0.044</td></tr><tr><td>35 or fewer</td><td class="n">0.24</td></tr></tbody></table></div>
+      <p class="hint">About a quarter of slots are that quiet or quieter. A separate λ is fitted for each vehicle type.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="m-t2">
+    <h2>Statistical tool 2: Exponential distribution</h2>
+    <div class="card tool">
+      <p style="margin:0">Models the waiting time between two vehicles. If arrivals are Poisson, the gaps are exponential, so the two models back each other up.</p>
+      <div class="formula">P(gap &gt; t) = e<sup>−r·t</sup><br>mean gap = 1 / r</div>
+      <p class="hint" style="margin-top:0">Where r = arrival rate per second, t = gap in seconds.</p>
+      <h3 style="margin-top:14px">How we check it</h3>
+      <p style="margin:0">Standard deviation of gaps should be close to the mean · overlay the exponential curve on a histogram of gaps · Chi-square or Kolmogorov-Smirnov test · short gaps point to crowding and tailgating.</p>
+      <h3 style="margin-top:14px">Worked example: 40 vehicles per 10 minutes</h3>
+      <div class="tw"><table style="max-width:380px"><thead><tr><th>Quantity</th><th class="n">Value</th></tr></thead><tbody>
+        <tr><td>Rate r</td><td class="n">0.067 per second</td></tr><tr><td>Average gap</td><td class="n">15 seconds</td></tr><tr><td>Gap over 30 s</td><td class="n">0.135</td></tr><tr><td>Gap under 5 s</td><td class="n">0.28</td></tr></tbody></table></div>
+      <p class="hint">A gap over 30 s occurs about once in seven. Short gaps are why random traffic still looks clustered.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="m-t3">
+    <h2>Statistical tool 3: Markov chain</h2>
+    <div class="card tool">
+      <p style="margin:0">Adds a bit of memory: the next state of traffic depends on the state now. Traffic tends to stay in one state for a while.</p>
+      <h3 style="margin-top:14px">Building the chain</h3>
+      <ul class="tight" style="list-style:none;padding:0">
+        <li>1.) Define states: light, moderate, heavy, from low, middle and high count bands.</li>
+        <li>2.) Count the moves between consecutive slots.</li>
+        <li>3.) Divide each row by its total to get probabilities.</li></ul>
+      <div class="formula">p(ij) = P(next state = j | current state = i)</div>
+      <p class="hint" style="margin-top:0">Needs a few hundred slots, and the band limits must be stated clearly because they change the results.</p>
+      <h3 style="margin-top:14px">Transition table (illustrative numbers)</h3>
+      <div class="tw"><table style="max-width:420px"><thead><tr><th>From / To</th><th class="n">Light</th><th class="n">Moderate</th><th class="n">Heavy</th></tr></thead><tbody>
+        <tr><td>Light</td><td class="n">0.60</td><td class="n">0.30</td><td class="n">0.10</td></tr>
+        <tr><td>Moderate</td><td class="n">0.25</td><td class="n">0.50</td><td class="n">0.25</td></tr>
+        <tr><td>Heavy</td><td class="n">0.10</td><td class="n">0.40</td><td class="n">0.50</td></tr></tbody></table></div>
+      <p class="hint">Light now: 60% stays light. Two slots ahead, the chance of heavy is about 0.185. Long-run share of time: about 32% light, 41% moderate, 27% heavy.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="m-t4">
+    <h2>Statistical tool 4: Chi-square test</h2>
+    <div class="card tool">
+      <p style="margin:0">Checks whether the observed counts fit what the model expects.</p>
+      <p style="margin:8px 0 0">H0: counts follow a Poisson distribution.<br>H1: counts do not follow a Poisson distribution.</p>
+      <div class="formula">χ² = Σ (O − E)² / E</div>
+      <p class="hint" style="margin-top:0">Where O = observed slots, E = expected slots = N × Poisson probability.</p>
+      <p style="margin:8px 0 0">Merge rare counts until every E is at least 5. Degrees of freedom = classes − 1 − 1. Significance level: 0.05.</p>
+      <h3 style="margin-top:14px">Example: 100 five-minute slots, λ = 4</h3>
+      <div class="tw"><table style="max-width:460px"><thead><tr><th>Vehicles</th><th class="n">O</th><th class="n">E</th><th class="n">(O−E)²/E</th></tr></thead><tbody>
+        <tr><td>0 or 1</td><td class="n">6</td><td class="n">9.2</td><td class="n">1.09</td></tr>
+        <tr><td>2</td><td class="n">18</td><td class="n">14.7</td><td class="n">0.76</td></tr>
+        <tr><td>3</td><td class="n">24</td><td class="n">19.5</td><td class="n">1.02</td></tr>
+        <tr><td>4</td><td class="n">15</td><td class="n">19.5</td><td class="n">1.05</td></tr>
+        <tr><td>5</td><td class="n">20</td><td class="n">15.6</td><td class="n">1.22</td></tr>
+        <tr><td>6</td><td class="n">7</td><td class="n">10.4</td><td class="n">1.12</td></tr>
+        <tr><td>7 or more</td><td class="n">10</td><td class="n">11.1</td><td class="n">0.10</td></tr></tbody>
+        <tfoot><tr><td>Total</td><td class="n">100</td><td class="n">100</td><td class="n">6.37</td></tr></tfoot></table></div>
+      <p style="margin:10px 0 0"><b>Result:</b> χ² = 6.37, 5 d.f., critical value 11.07, p ≈ 0.27. Not significant: Poisson is not rejected.</p>
+      <p class="hint">Counts are invented for illustration.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="m-t5">
+    <h2>Statistical tool 5: Normal distribution and demography</h2>
+    <div class="card tool">
+      <p style="margin:0">Extra check for busy periods: do counts look like a bell curve? Use a histogram, a Q-Q plot and the Shapiro-Wilk test.</p>
+      <div class="formula">Z = (X − μ) / σ</div>
+      <p style="margin:8px 0 0">Example: μ = 40, σ ≈ 6.3. More than 50 vehicles uses cutoff 50.5, so Z ≈ 1.66 and the probability is about 0.048, very close to Poisson.</p>
+      <p class="hint">Use it when the average is above about 20 per slot. For buses and trucks, stay with Poisson.</p>
+      <h3 style="margin-top:14px">Compare contrasting areas</h3>
+      <div class="tw"><table><thead><tr><th>If the area has</th><th>We would expect</th></tr></thead><tbody>
+        <tr><td>Many students</td><td>More two-wheelers; peaks at college timings</td></tr>
+        <tr><td>Many offices</td><td>Sharp, short morning and evening peaks</td></tr>
+        <tr><td>A busy market</td><td>Short gaps, goods vehicles, long heavy spells</td></tr>
+        <tr><td>Mostly housing</td><td>Low, steady inflow, small peaks</td></tr>
+        <tr><td>High car ownership</td><td>More cars, larger counts</td></tr></tbody></table></div>
+      <p class="hint">Compare λ, vehicle mix, Markov tables and gaps. These are expectations to test, not conclusions.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="m-end">
+    <h2>Limitations, future scope and conclusion</h2>
+    <div class="grid2">
+      <div class="card"><h3>Limitations</h3><ul class="tight">
+        <li>Poisson assumes independent, steady arrivals; signals and school or office timings can bunch vehicles.</li>
+        <li>Exponential and Markov models need exact arrival times and a long run of slots.</li>
+        <li>Light, moderate and heavy limits change the Markov results.</li>
+        <li>Results belong to the place and time surveyed; mixed traffic is modelled by vehicle type.</li>
+        <li>Demographic data may come from older census years.</li></ul></div>
+      <div class="card"><h3>Future scope</h3><ul class="tight">
+        <li>Poisson regression linking arrival rate to density and vehicle ownership.</li>
+        <li>Time-varying Poisson process and queueing models for waiting time at the entry point.</li></ul></div>
+      <div class="card" style="grid-column:1/-1"><h3>Conclusion</h3><ul class="tight">
+        <li>Basic probability gives the first honest answers: how often busy slots happen and the share of each vehicle type.</li>
+        <li>Poisson models counts per slot; Exponential models gaps between vehicles.</li>
+        <li>The Markov chain shows how traffic moves between light, moderate and heavy.</li>
+        <li>Chi-square checks whether the models really fit; Normal is a shortcut for busy periods.</li>
+        <li>A bad fit is also a finding: it points to bunching or a changing rate.</li>
+        <li>A handful of simple models, checked against real counts, turn vehicle counts into clear, honest statements about an area’s traffic.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ REFERENCES ============ -->
+<section role="tabpanel" id="p-references" aria-labelledby="t-references" tabindex="-1" hidden>
+  <div class="sec">
+    <h2>References</h2>
+    <div class="card">
+      <p style="margin:0"><b>The presentation contains no references.</b> There is no references slide and no citation on any of its 14 slides, so none are listed here. Adding sources that the deck does not name would mean inventing them.</p>
+      <p class="hint">When the group has its sources, send them and they can be added to this tab as written.</p>
+    </div>
+  </div>
+  <div class="sec">
+    <h3>What the deck does name</h3>
+    <div class="grid2">
+      <div class="card"><h3>Data sources (slide 5)</h3><p style="margin:0">Counts at the main entry points (tally, video or automatic counters), plus census and municipal records. No specific datasets, agencies or years are given.</p></div>
+      <div class="card"><h3>Statistical methods (slides 8–12)</h3><p style="margin:0">Poisson distribution, Exponential distribution, Markov chain, Chi-square test, Normal distribution, Kolmogorov-Smirnov test, Shapiro-Wilk test and Q-Q plots. These are method names only, with no textbook or paper attached.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div>Group 7 · Submitted to Dr. Zaffar Mehdi Dar</div>
+  <div style="margin-top:4px">Presented by: Faizuddin Mughal (ENG25AD0168) · Kumar Navneet (ENG25AD0152) · Manoj Kumar KN (ENG25AD0160) · Jeevakash K (ENG25AD0133) · Bhavesh Reddy (ENG25AD0154) · Kishan (ENG25AD0144)</div>
+</footer>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+/* ---------- tabs ---------- */
+const TABS=['prototype','methodology','references'];
+function showTab(n){if(!TABS.includes(n))n='prototype';
+  TABS.forEach(t=>{const on=t===n;$('t-'+t).setAttribute('aria-selected',on);$('p-'+t).hidden=!on});}
+document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{showTab(b.dataset.tab);try{history.replaceState(null,'','#'+b.dataset.tab)}catch(e){location.hash=b.dataset.tab}}));
+window.addEventListener('hashchange',()=>showTab(location.hash.slice(1)));
+showTab(location.hash.slice(1));
+document.querySelectorAll('[data-jump]').forEach(b=>b.addEventListener('click',()=>{const e=$(b.dataset.jump);if(e)e.scrollIntoView({behavior:'smooth',block:'start'})}));
+
+/* ---------- maths ---------- */
+function lgamma(z){const c=[76.18009172947146,-86.50532032941677,24.01409824083091,-1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];let y=z,t=z+5.5;t-=(z+0.5)*Math.log(t);let s=1.000000000190015;for(let j=0;j<6;j++)s+=c[j]/++y;return -t+Math.log(2.5066282746310005*s/z)}
+const pmf=(l,x)=>l<=0?(x===0?1:0):Math.exp(-l+x*Math.log(l)-lgamma(x+1));
+const cdf=(l,x)=>{let s=0;for(let i=0;i<=x;i++)s+=pmf(l,i);return Math.min(1,s)};
+function gser(a,x){let ap=a,sum=1/a,del=sum;for(let n=0;n<500;n++){ap++;del*=x/ap;sum+=del;if(Math.abs(del)<Math.abs(sum)*1e-14)break}return sum*Math.exp(-x+a*Math.log(x)-lgamma(a))}
+function gcf(a,x){let b=x+1-a,c=1e300,d=1/b,h=d;for(let i=1;i<500;i++){const an=-i*(i-a);b+=2;d=an*d+b;if(Math.abs(d)<1e-300)d=1e-300;c=b+an/c;if(Math.abs(c)<1e-300)c=1e-300;d=1/d;const dl=d*c;h*=dl;if(Math.abs(dl-1)<1e-14)break}return Math.exp(-x+a*Math.log(x)-lgamma(a))*h}
+const chiSf=(x,k)=>{if(x<=0)return 1;const a=k/2,xx=x/2;return xx<a+1?1-gser(a,xx):gcf(a,xx)};
+function chiCrit(k){let lo=0,hi=500;for(let i=0;i<100;i++){const m=(lo+hi)/2;chiSf(m,k)>0.05?lo=m:hi=m}return(lo+hi)/2}
+const Phi=z=>0.5*(1+erf(z/Math.SQRT2));
+function erf(x){const s=x<0?-1:1;x=Math.abs(x);const t=1/(1+0.3275911*x);const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return s*y}
+function probit(p){ // Acklam
+  const a=[-3.969683028665376e+01,2.209460984245205e+02,-2.759285104469687e+02,1.383577518672690e+02,-3.066479806614716e+01,2.506628277459239e+00],
+  b=[-5.447609879822406e+01,1.615858368580409e+02,-1.556989798598866e+02,6.680131188771972e+01,-1.328068155288572e+01],
+  c=[-7.784894002430293e-03,-3.223964580411365e-01,-2.400758277161838e+00,-2.549732539343734e+00,4.374664141464968e+00,2.938163982698783e+00],
+  d=[7.784695709041462e-03,3.224671290700398e-01,2.445134137142996e+00,3.754408661907416e+00];
+  const pl=0.02425;let q,r;
+  if(p<pl){q=Math.sqrt(-2*Math.log(p));return(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1)}
+  if(p>1-pl){q=Math.sqrt(-2*Math.log(1-p));return-(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1)}
+  q=p-0.5;r=q*q;return(((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1)}
+const mean=a=>a.reduce((s,v)=>s+v,0)/a.length;
+const vari=a=>{const m=mean(a);return a.reduce((s,v)=>s+(v-m)**2,0)/(a.length-1)};
+const f=(x,d=3)=>Number.isFinite(x)?x.toFixed(d):'–';
+function parseNums(t,kind){const parts=t.split(/[\s,;]+/).filter(Boolean);const out=[];
+  for(const p of parts){const v=Number(p);
+    if(!Number.isFinite(v))return{err:'“'+p.slice(0,12)+'” is not a number.'};
+    if(kind==='count'&&(v<0||!Number.isInteger(v)))return{err:'Counts must be whole numbers of 0 or more. Check “'+p.slice(0,12)+'”.'};
+    if(kind==='gap'&&v<=0)return{err:'Gaps must be greater than 0. Check “'+p.slice(0,12)+'”.'};
+    out.push(v)}return{v:out}}
+function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function poisSample(l,r){const L=Math.exp(-l);let k=0,p=1;do{k++;p*=r()}while(p>L);return k-1}
+function gauss(r){return Math.sqrt(-2*Math.log(1-r()))*Math.cos(2*Math.PI*r())}
+
+/* ---------- chart helpers ---------- */
+function niceTicks(max,n){const raw=max/n,p=Math.pow(10,Math.floor(Math.log10(raw||1))),m=raw/p,s=(m<=1?1:m<=2?2:m<=5?5:10)*p;const t=[];for(let v=0;v<=max+s*0.999;v+=s)t.push(+v.toFixed(6));return t}
+const tickFmt=v=>Math.abs(v)>=1000?String(Math.round(v)):String(+v.toFixed(2));
+function frame(o){const W=640,H=270,m={l:48,r:14,t:12,b:44};
+  const sx=v=>m.l+(v-o.x0)/(o.x1-o.x0)*(W-m.l-m.r),sy=v=>H-m.b-(v-o.y0)/(o.y1-o.y0)*(H-m.t-m.b);
+  let a='';for(const t of o.yt)a+=`<line class="grid" x1="${m.l}" x2="${W-m.r}" y1="${sy(t)}" y2="${sy(t)}"/><text class="tick" x="${m.l-6}" y="${sy(t)+4}" text-anchor="end">${tickFmt(t)}</text>`;
+  for(const t of o.xt)a+=`<text class="tick" x="${sx(t)}" y="${H-m.b+16}" text-anchor="middle">${tickFmt(t)}</text>`;
+  a+=`<line class="axis" x1="${m.l}" x2="${W-m.r}" y1="${sy(o.y0)}" y2="${sy(o.y0)}"/>`;
+  a+=`<text class="albl" x="${(m.l+W-m.r)/2}" y="${H-6}" text-anchor="middle">${o.xl}</text>`;
+  a+=`<text class="albl" x="12" y="${(m.t+H-m.b)/2}" text-anchor="middle" transform="rotate(-90 12 ${(m.t+H-m.b)/2})">${o.yl}</text>`;
+  return{sx,sy,wrap:inner=>`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.label}">${a}${inner}</svg>`}}
+const stepTicks=(lo,hi,n)=>{const s=Math.max(1,Math.ceil((hi-lo)/n));const t=[];for(let v=Math.ceil(lo/s)*s;v<=hi;v+=s)t.push(v);return t};
+
+/* ---------- state ---------- */
+const TYPES=[['all','All vehicles (combined)'],['two','Two-wheeler'],['car','Car'],['auto','Auto'],['bus','Bus'],['truck','Truck'],['cycle','Cycle']];
+const store={};let cur='all',bandTouched=false;
+$('vtype').innerHTML=TYPES.map(t=>`<option value="${t[0]}">${t[1]}</option>`).join('');
+const save=()=>{store[cur]={counts:$('counts').value,gaps:$('gaps').value,lam:$('lamOver').value,slot:$('slotMin').value}};
+function load(){const s=store[cur]||{counts:'',gaps:'',lam:'',slot:'10'};$('counts').value=s.counts;$('gaps').value=s.gaps;$('lamOver').value=s.lam;$('slotMin').value=s.slot;bandTouched=false}
+
+/* ---------- analysis ---------- */
+function poissonClasses(data,lam){
+  const N=data.length,K=Math.max(...data);let cl=[];
+  for(let x=0;x<K;x++)cl.push({lo:x,hi:x,O:0,E:N*pmf(lam,x)});
+  cl.push({lo:K,hi:Infinity,O:0,E:N*(1-(K>0?cdf(lam,K-1):0))});
+  data.forEach(v=>{cl[Math.min(v,K)].O++});
+  const mg=(i)=>{const a=cl[i],b=cl[i+1];cl.splice(i,2,{lo:a.lo,hi:b.hi,O:a.O+b.O,E:a.E+b.E})};
+  while(cl.length>1&&cl[0].E<5)mg(0);
+  while(cl.length>1&&cl[cl.length-1].E<5)mg(cl.length-2);
+  return cl}
+const clLabel=(c,i,n)=>c.lo===c.hi?String(c.lo):c.hi===Infinity?`${c.lo} or more`:(i===0?`${c.hi} or fewer`:`${c.lo}–${c.hi}`);
+
+function renderSummary(d,lam){
+  const m=mean(d),v=vari(d),di=v/m;
+  let band,cls,txt;
+  if(!Number.isFinite(di)){band='n/a';cls='';txt=''}
+  else if(di>1.2){band='> 1';cls='warn';txt='Bunching, often from a signal'}
+  else if(di<0.8){band='< 1';cls='warn';txt='More even than random'}
+  else{band='≈ 1';cls='good';txt='Poisson looks good'}
+  $('summary').innerHTML=`<div class="stats">
+   <div class="stat"><b>${d.length}</b><span>slots</span></div>
+   <div class="stat"><b>${f(m,2)}</b><span>mean count per slot (λ̂)</span></div>
+   <div class="stat"><b>${f(v,2)}</b><span>variance</span></div>
+   <div class="stat"><b>${f(di,2)}</b><span>dispersion index (variance / mean)</span></div></div>
+   <p style="margin:14px 0 0"><span class="pill ${cls}">${band}</span> ${txt}</p>
+   <p class="hint">Read as ≈ 1 when the index is between 0.8 and 1.2. The deck gives no cut-off, so that range is this prototype's assumption.</p>`}
+
+function renderPoisson(d,lam,slotMin){
+  const N=d.length,lo=Math.max(0,Math.min(...d)-2),hi=Math.max(...d)+2;
+  const obs={};d.forEach(v=>obs[v]=(obs[v]||0)+1);
+  let ymax=0;for(let x=lo;x<=hi;x++)ymax=Math.max(ymax,obs[x]||0,N*pmf(lam,x));
+  const yt=niceTicks(ymax*1.08,4),y1=yt[yt.length-1];
+  const F=frame({x0:lo-0.5,x1:hi+0.5,y0:0,y1,xt:stepTicks(lo,hi,14),yt,xl:`Vehicles per ${slotMin}-minute slot`,yl:'Number of slots',label:'Observed counts compared with Poisson expected counts'});
+  let bars='',pts=[];const bw=(F.sx(1)-F.sx(0))*0.78;
+  for(let x=lo;x<=hi;x++){const o=obs[x]||0;if(o)bars+=`<rect class="bar" x="${F.sx(x)-bw/2}" y="${F.sy(o)}" width="${bw}" height="${F.sy(0)-F.sy(o)}"><title>${x}: ${o} slots</title></rect>`;pts.push([F.sx(x),F.sy(N*pmf(lam,x))])}
+  $('poisChart').innerHTML=F.wrap(bars+`<polyline class="exp" points="${pts.map(p=>p.join(',')).join(' ')}"/>`+pts.map(p=>`<circle class="dot" cx="${p[0]}" cy="${p[1]}" r="2.2"/>`).join(''));
+  const cl=poissonClasses(d,lam),chi=cl.reduce((s,c)=>s+(c.O-c.E)**2/c.E,0),dof=cl.length-2;
+  let rows=cl.map((c,i)=>`<tr><td>${clLabel(c,i,cl.length)}</td><td class="n">${c.O}</td><td class="n">${f(c.E,1)}</td><td class="n">${f((c.O-c.E)**2/c.E,2)}</td></tr>`).join('');
+  let verdict;
+  if(dof<1)verdict=`<p class="msg">Too few classes after merging (${cl.length}) to test with this λ. Add more slots or a wider range of counts.</p>`;
+  else{const p=chiSf(chi,dof),crit=chiCrit(dof),rej=p<0.05;
+    verdict=`<p style="margin:12px 0 4px"><span class="pill ${rej?'bad':'good'}">${rej?'Significant':'Not significant'}</span></p>
+    <p style="margin:0"><b>χ² = ${f(chi,2)}</b>, ${dof} d.f., critical value ${f(crit,2)}, p ≈ ${f(p,2)}. ${rej?'Poisson is rejected at the 0.05 level. A bad fit is also a finding: it points to bunching or a changing rate.':'Poisson is not rejected.'}</p>`}
+  $('chiOut').innerHTML=`<p style="margin:0 0 8px">λ used: <b class="mono">${f(lam,3)}</b> · N = ${N} slots</p><div class="tw"><table><thead><tr><th>Vehicles</th><th class="n">O</th><th class="n">E</th><th class="n">(O−E)²/E</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>Total</td><td class="n">${N}</td><td class="n">${f(cl.reduce((s,c)=>s+c.E,0),1)}</td><td class="n">${f(chi,2)}</td></tr></tfoot></table></div>${verdict}`}
+
+function quantile(sorted,q){return sorted[Math.min(sorted.length-1,Math.floor(q*sorted.length))]}
+function markov(states){const n=[[0,0,0],[0,0,0],[0,0,0]];for(let i=0;i<states.length-1;i++)n[states[i]][states[i+1]]++;
+  const rows=n.map(r=>r[0]+r[1]+r[2]);return{n,rows,P:n.map((r,i)=>rows[i]?r.map(v=>v/rows[i]):null)}}
+const mm=(A,B)=>A.map(r=>[0,1,2].map(j=>r.reduce((s,v,k)=>s+v*B[k][j],0)));
+function stationary(P){let v=[1/3,1/3,1/3];for(let i=0;i<5000;i++)v=[0,1,2].map(j=>v.reduce((s,vi,k)=>s+vi*P[k][j],0));return v}
+const SN=['Light','Moderate','Heavy'];
+function matTable(P,counts){return `<div class="tw"><table><thead><tr><th>From / To</th>${SN.map(s=>`<th class="n">${s}</th>`).join('')}</tr></thead><tbody>${P.map((r,i)=>`<tr><td>${SN[i]}</td>${[0,1,2].map(j=>`<td class="n" style="background:color-mix(in srgb,var(--accent) ${Math.round((r?r[j]:0)*60)}%,transparent)">${r?f(r[j],2):'–'}${counts?`<span style="color:var(--muted);font-size:11px"> (${counts[i][j]})</span>`:''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
+function chainSummary(P){
+  if(P.some(r=>!r))return '<p class="hint">One state never occurs, so two-step and long-run figures are not shown.</p>';
+  const P2=mm(P,P),s=stationary(P);
+  return `<h3 style="margin-top:14px">Two slots ahead</h3>${matTable(P2)}<h3 style="margin-top:14px">Long-run share of time</h3><p style="margin:0" class="mono">${SN.map((n,i)=>`${n} ${Math.round(s[i]*100)}%`).join(' · ')}</p>`}
+
+function renderMarkov(d){
+  const s=[...d].sort((a,b)=>a-b);
+  if(!bandTouched){$('bandL').value=quantile(s,1/3);$('bandH').value=quantile(s,2/3)+(quantile(s,2/3)===quantile(s,1/3)?1:0)}
+  const a=Number($('bandL').value),b=Number($('bandH').value);
+  if(!(a<b)){$('bandMsg').textContent='“Heavy from” must be greater than “Light up to”.';$('mkOut').innerHTML='<span class="empty">Fix the band limits.</span>';return}
+  $('bandMsg').textContent='';
+  const st=d.map(v=>v<=a?0:v>=b?2:1),sh=[0,1,2].map(k=>st.filter(x=>x===k).length);
+  const mk=markov(st);
+  $('mkNote').textContent=d.length<300?`Only ${d.length} slots: the deck says a Markov chain needs a few hundred, so treat these probabilities as rough.`:'';
+  $('mkOut').innerHTML=`<p style="margin:0 0 8px">Light ≤ ${a} · Moderate ${a+1}–${b-1} · Heavy ≥ ${b} &nbsp;|&nbsp; slots: ${sh[0]} light, ${sh[1]} moderate, ${sh[2]} heavy</p><h3>Transition probabilities (moves counted)</h3>${matTable(mk.P,mk.n)}${chainSummary(mk.P)}`}
+
+function renderGaps(g){
+  const m=mean(g),sd=Math.sqrt(vari(g)),r=1/m,mx=Math.max(...g),nb=Math.min(14,Math.max(5,Math.round(Math.sqrt(g.length)))),w=mx/nb;
+  const obs=new Array(nb).fill(0);g.forEach(v=>obs[Math.min(nb-1,Math.floor(v/w))]++);
+  const exp=obs.map((_,i)=>g.length*(Math.exp(-r*i*w)-(i===nb-1?0:Math.exp(-r*(i+1)*w))));
+  const ymax=Math.max(...obs,...exp),yt=niceTicks(ymax*1.08,4),y1=yt[yt.length-1];
+  const F=frame({x0:0,x1:mx,y0:0,y1,xt:niceTicks(mx,6).filter(t=>t<=mx),yt,xl:'Gap between vehicles (seconds)',yl:'Number of gaps',label:'Histogram of gaps with exponential curve'});
+  let bars='',pts=[];obs.forEach((o,i)=>{const x0=F.sx(i*w)+1,x1=F.sx((i+1)*w)-1;if(o)bars+=`<rect class="bar" x="${x0}" y="${F.sy(o)}" width="${x1-x0}" height="${F.sy(0)-F.sy(o)}"><title>${f(i*w,1)}–${f((i+1)*w,1)} s: ${o} gaps</title></rect>`;pts.push([(x0+x1)/2,F.sy(exp[i])])});
+  $('gapChart').innerHTML=F.wrap(bars+`<polyline class="exp" points="${pts.map(p=>p.join(',')).join(' ')}"/>`+pts.map(p=>`<circle class="dot" cx="${p[0]}" cy="${p[1]}" r="2.2"/>`).join(''));
+  const ratio=sd/m,near=Math.abs(ratio-1)<=0.2;
+  $('gapOut').innerHTML=`<div class="stats"><div class="stat"><b>${g.length}</b><span>gaps</span></div><div class="stat"><b>${f(m,1)} s</b><span>mean gap (1 / r)</span></div><div class="stat"><b>${f(sd,1)} s</b><span>standard deviation</span></div><div class="stat"><b>${f(r,3)}</b><span>rate r per second</span></div></div>
+   <p style="margin:14px 0 0"><span class="pill ${near?'good':'warn'}">SD / mean = ${f(ratio,2)}</span> ${near?'Standard deviation is close to the mean, as Exponential gaps should be.':ratio<1?'Gaps are more even than random.':'Gaps vary more than Exponential, which points to bunching.'}</p>
+   <p class="hint">Gap over 30 s: ${f(Math.exp(-30*r),3)} expected, ${f(g.filter(v=>v>30).length/g.length,3)} observed. Gap under 5 s: ${f(1-Math.exp(-5*r),3)} expected, ${f(g.filter(v=>v<5).length/g.length,3)} observed. The Kolmogorov-Smirnov test is not part of this prototype.</p>`}
+
+function renderQQ(d){
+  const m=mean(d),sd=Math.sqrt(vari(d));
+  if(m<=20){$('qqNote').textContent=`Average is ${f(m,1)} per slot, which is below about 20. Stay with Poisson for this dataset.`;$('qqChart').innerHTML='';return}
+  $('qqNote').textContent=`Average is ${f(m,1)} per slot, so the Normal check applies. μ = ${f(m,2)}, σ = ${f(sd,2)}.`;
+  const s=[...d].sort((a,b)=>a-b),n=s.length,th=s.map((_,i)=>m+sd*probit((i+0.5)/n));
+  const lo=Math.floor(Math.min(s[0],th[0])),hi=Math.ceil(Math.max(s[n-1],th[n-1])),t=niceTicks(hi-lo,5).map(v=>v+lo).filter(v=>v<=hi);
+  const F=frame({x0:lo,x1:hi,y0:lo,y1:hi,xt:t,yt:t,xl:'Expected count under Normal',yl:'Observed count',label:'Normal Q-Q plot'});
+  $('qqChart').innerHTML=F.wrap(`<line class="axis" x1="${F.sx(lo)}" y1="${F.sy(lo)}" x2="${F.sx(hi)}" y2="${F.sy(hi)}" stroke-dasharray="4 4"/>`+s.map((v,i)=>`<circle class="pt" cx="${F.sx(th[i])}" cy="${F.sy(v)}" r="2.6" opacity=".7"/>`).join(''))}
+
+function renderMix(){
+  const tot=TYPES.slice(1).map(([k,l])=>{const s=store[k];if(!s)return[l,0];const p=parseNums(s.counts,'count');return[l,p.v?p.v.reduce((a,b)=>a+b,0):0]});
+  const sum=tot.reduce((a,b)=>a+b[1],0);
+  if(!sum){$('mix').innerHTML='<span class="empty">Enter counts for individual vehicle types to see each type\'s share of all vehicles.</span>';return}
+  $('mix').innerHTML=tot.filter(t=>t[1]>0).map(([l,v])=>`<div><span>${l}</span><span class="track"><i style="width:${v/sum*100}%"></i></span><span class="mono">${f(v/sum*100,1)}%</span></div>`).join('')}
+
+function run(){
+  save();
+  const pc=parseNums($('counts').value,'count');$('countsMsg').textContent=pc.err||'';
+  const pg=parseNums($('gaps').value,'gap');$('gapsMsg').textContent=pg.err||'';
+  renderMix();
+  const none='<span class="empty">Waiting for counts.</span>';
+  if(!pc.v||pc.v.length<3){
+    $('summary').innerHTML=none;$('chiOut').innerHTML=none;$('mkOut').innerHTML=none;$('poisChart').innerHTML='';$('qqChart').innerHTML='';$('qqNote').textContent='Enter at least 3 counts.';$('mkNote').textContent='';
+  }else{
+    const d=pc.v,sl=Number($('slotMin').value)||10,ov=$('lamOver').value.trim(),lam=ov!==''&&Number(ov)>0?Number(ov):mean(d);
+    if(mean(d)===0&&ov===''){$('summary').innerHTML='<span class="msg">All counts are 0, so there is nothing to fit.</span>'}
+    else{renderSummary(d,lam);renderPoisson(d,lam,sl);renderMarkov(d);renderQQ(d)}
+  }
+  if(pg.v&&pg.v.length>=5)renderGaps(pg.v);
+  else{$('gapChart').innerHTML='<span class="empty">Add at least 5 gaps above to see the histogram.</span>';$('gapOut').innerHTML='<span class="empty">Add gaps above. If arrivals are Poisson, the standard deviation of the gaps should be close to their mean.</span>'}
+}
+['counts','gaps','lamOver','slotMin'].forEach(id=>$(id).addEventListener('input',run));
+['bandL','bandH'].forEach(id=>$(id).addEventListener('input',()=>{bandTouched=true;run()}));
+$('bandReset').addEventListener('click',()=>{bandTouched=false;run()});
+$('vtype').addEventListener('change',()=>{cur=$('vtype').value;load();run()});
+
+/* ---------- samples (illustrative, generated in the browser) ---------- */
+function setData(counts,gaps,slot,lam){$('counts').value=counts.join(', ');$('gaps').value=gaps?gaps.join(', '):'';$('slotMin').value=slot||10;$('lamOver').value=lam||'';bandTouched=false;run()}
+$('smpSteady').addEventListener('click',()=>{const r=rng(7);const c=Array.from({length:300},()=>poisSample(40,r));const g=Array.from({length:200},()=>+(-15*Math.log(1-r())).toFixed(1)||0.1);setData(c,g,10)});
+$('smpBunch').addEventListener('click',()=>{const r=rng(11);let s=0;const c=Array.from({length:300},()=>{s=0.9*s+0.44*gauss(r);return poisSample(Math.max(8,40+12*s),r)});
+  const g=Array.from({length:200},()=>+(-(r()<0.6?6:30)*Math.log(1-r())).toFixed(1)||0.1);setData(c,g,10)});
+$('smpDeck').addEventListener('click',()=>{const c=[];[[0,3],[1,3],[2,18],[3,24],[4,15],[5,20],[6,7],[7,10]].forEach(([v,n])=>{for(let i=0;i<n;i++)c.push(v)});setData(c,null,5,4)});
+
+/* ---------- calculators ---------- */
+const tr=(a,b)=>`<tr><td>${a}</td><td class="n">${b}</td></tr>`;
+const num=id=>Number($(id).value);
+function calcs(){
+  const l=num('cL'),x=Math.round(num('cX'));
+  $('cPois').innerHTML=l>0&&x>=0?tr(`Exactly ${x}`,f(pmf(l,x),3))+tr(`${x} or fewer`,f(cdf(l,x),3))+tr(`More than ${x}`,f(1-cdf(l,x),3)):tr('Enter λ above 0 and x of 0 or more','');
+  const el=num('eL'),em=num('eM'),et=num('eT'),es=num('eS'),r=el/(em*60);
+  $('cExp').innerHTML=r>0?tr('Rate r',f(r,3)+' per second')+tr('Average gap (1 / r)',f(1/r,1)+' seconds')+tr(`Gap over ${et} s`,f(Math.exp(-r*et),3))+tr(`Gap under ${es} s`,f(1-Math.exp(-r*es),3)):tr('Enter positive values','');
+  const be=num('bE'),bn=num('bN');
+  $('cBasic').innerHTML=bn>0&&be>=0&&be<=bn?tr('Probability',f(be/bn,3))+tr('About one slot in',f(bn/be,1)):tr('Enter slots between 0 and the total','');
+  const mu=num('nM'),sg=num('nS'),nx=num('nX');
+  $('cNorm').innerHTML=sg>0?(()=>{const z=(nx+0.5-mu)/sg;return tr('Cutoff (continuity)',f(nx+0.5,1))+tr('Z = (X − μ) / σ',f(z,2))+tr(`P(more than ${nx})`,f(1-Phi(z),3))+tr('Poisson, same mean',mu>0?f(1-cdf(mu,Math.floor(nx)),3):'–')})():tr('Enter σ above 0','');
+}
+['cL','cX','eL','eM','eT','eS','bE','bN','nM','nS','nX'].forEach(id=>$(id).addEventListener('input',calcs));
+$('nUse').addEventListener('click',()=>{const p=parseNums($('counts').value,'count');if(p.v&&p.v.length>2){$('nM').value=f(mean(p.v),2);$('nS').value=f(Math.sqrt(vari(p.v)),2);$('nX').value=Math.round(mean(p.v)+Math.sqrt(vari(p.v))*1.6);calcs()}});
+
+const MK0=[[.6,.3,.1],[.25,.5,.25],[.1,.4,.5]];
+$('cMk').innerHTML=`<thead><tr><th>From / To</th>${SN.map(s=>`<th class="n">${s}</th>`).join('')}</tr></thead><tbody>${MK0.map((r,i)=>`<tr><td>${SN[i]}</td>${r.map((v,j)=>`<td><input id="mk${i}${j}" type="number" step="0.01" min="0" max="1" value="${v}" aria-label="${SN[i]} to ${SN[j]}"></td>`).join('')}</tr>`).join('')}</tbody>`;
+function mkCalc(){
+  const P=[0,1,2].map(i=>[0,1,2].map(j=>Number($('mk'+i+j).value)));
+  const bad=P.findIndex(r=>Math.abs(r[0]+r[1]+r[2]-1)>0.011||r.some(v=>v<0));
+  if(bad>=0){$('cMkOut').innerHTML=`<p class="msg">The ${SN[bad]} row must add up to 1.</p>`;return}
+  const P2=mm(P,P),s=stationary(P);
+  $('cMkOut').innerHTML=`<p style="margin:0">From light, the chance of heavy two slots ahead is <b class="mono">${f(P2[0][2],3)}</b>.</p><p style="margin:8px 0 0">Long-run share of time: <span class="mono">${SN.map((n,i)=>`${n} ${Math.round(s[i]*100)}%`).join(' · ')}</span></p>`}
+for(let i=0;i<3;i++)for(let j=0;j<3;j++)$('mk'+i+j).addEventListener('input',mkCalc);
+
+calcs();mkCalc();
+$('smpBunch').click();
+})();
+</script>
+
+</body></html>

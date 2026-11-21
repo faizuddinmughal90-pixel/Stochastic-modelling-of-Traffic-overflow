@@ -1,0 +1,8 @@
+{
+  "name": "Stochastic Traffic Inflow Lab",
+  "description": "Interactive statistical workbench and methodology monograph for modelling slot-based vehicle inflow using Poisson, Exponential, Markov chain, Chi-square, and Normal distributions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
